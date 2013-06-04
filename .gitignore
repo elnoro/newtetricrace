@@ -1,0 +1,7 @@
+.*
+~*
+*.min.js
+*.min.css
+*Template.php
+build.sh
+!.gitignore
