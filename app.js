@@ -1,127 +1,177 @@
 window.onload = function (argument) {
 		// 'use strict';
-		canvas = document.getElementsByTagName('canvas')[0];
-		ctx    = canvas.getContext('2d');
+		var canvas = document.getElementsByTagName('canvas')[0],
+			ctx = canvas.getContext('2d');
 
 		function Obstacle (side, road) {
 			var halfOfRoad = (road.rightEdge - road.leftEdge) / 2,
 				x = (side === 0) ? road.leftEdge : road.leftEdge + halfOfRoad;
 			this.gap = 0;
+			this.rightEdge = x;
+			this.leftEdge = x + 30; // x + width
 			this._draw = function () {
-				ctx.fillStyle = '#f00';
-				ctx.fillRect(x, this.gap, halfOfRoad, 20);
+				// ctx.fillStyle = '#f00';
+				// ctx.fillRect(x, this.gap, halfOfRoad, 20);
+				ctx.drawImage(this.obs_img, x, this.gap);
+				this.gap += Game.speed;
+				if (this.gap > canvas.height) {
+					Game.Objects.pool.obstacles.shift();
+				}
 			};
 		}
-		var createBG = function(bg_img) {
-			return {
-				_draw: function () {
-					ctx.drawImage(bg_img, 0, 0);
+		function Background(bg_img) {
+			this._draw = function () {
+				ctx.drawImage(bg_img, 0, 0);
+			};
+		}
+
+		function Road (x, width, style) {
+			this.leftEdge = x;
+			this.rightEdge = x + width;
+			this._draw = function () {
+				ctx.fillStyle = style;
+				ctx.fillRect(x, 0, width, canvas.height);
+			};
+		}
+
+		function Stripes(width, height, gap, road) {
+			this._draw = function() {
+				if (this.start > gap + height) { this.start -= gap + height; }
+				var start = this.start;
+				ctx.fillStyle = '#fff';
+				while (this.start < canvas.height) {
+					ctx.fillRect(
+						road.leftEdge + (road.rightEdge - road.leftEdge)/2,
+						this.start,
+						width,
+						height
+					);
+					this.start += gap + height;
 				}
+				this.start = start;
 			};
-		};
+			this.start = 0;
+		}
 
-		var createRoad = function (x, width, style) {
-			return {
-				leftEdge: x,
-				rightEdge: x + width,
-				_draw: function () {
-					ctx.fillStyle = style;
-					ctx.fillRect(x, 0, width, canvas.height);
-				}
-			};
-		};
-
-		var createStripes = function(width, height, gap, road) {
-			return {
-				_draw: function() {
-					if (this.start > gap + height) { this.start -= gap + height; }
-					var start = this.start; 
-					ctx.fillStyle = '#fff';
-					while (this.start < canvas.height) {
-						ctx.fillRect(road.leftEdge + (road.rightEdge - road.leftEdge)/2, this.start, width, height);
-						this.start += gap + height;
-					}
-					this.start = start;
-				},
-				start: 0
-			};
-		};
-
-		var createCar = function(img, x, y, road) {
+		function Car(img, x, y, road) {
 			var width = 14,
 				step = 5;
-			return {
-				_draw: function() {
-					ctx.drawImage(img, x, y);
-				},
-				stepLeft: function() {
-					x-=step;
-					if (x < road.leftEdge) {
-						x = road.leftEdge;
-					}
-				},
-				stepRight: function() {
-					x+=step;
-					if (x +width > road.rightEdge) {
-						x = road.rightEdge - width;
-					}
-				}
+			this._draw = function() {
+				ctx.drawImage(img, x, y);
 			};
-		};
-
-		function bindMovements (car) {
-			window.addEventListener('keydown', function (event) {	
-				switch(event.keyCode) {
-					case 37:
-						car.stepLeft();
-						break;
-					case 39:
-						car.stepRight();
-						break;
-				}
+			
+			Object.defineProperties(this, {
+				'leftEdge': {get: function () { return x; }},
+				'rightEdge': {get: function () { return x + width; }}
 			});
-			document.getElementsByTagName('button')[0].addEventListener('click', function () { car.stepLeft(); });
-			document.getElementsByTagName('button')[1].addEventListener('click', function () { car.stepRight(); });
-		}
 
-		function startAnimationLoop (objects_to_render, gameLoop) {
-			(function animationLoop () {
-				var i;
-				for (i = 0; i < objects_to_render.length; i++) {
-					objects_to_render[i]._draw();
+			this.stepLeft = function() {
+				x-=step;
+				if (x < road.leftEdge) {
+					x = road.leftEdge;
 				}
-				if (gameLoop()) {
-					requestAnimationFrame(animationLoop);
-				}
-			}());
-		}
-
-		var bg_grass = new Image();
-		bg_grass.onload = function () {
-			car_img = new Image();
-			car_img.onload = function () {
-				var road = createRoad(120, 60, '#aaa'),
-					stripes = createStripes(2, 5, 5, road),
-					car = createCar(car_img, 154, 300-22, road),
-					bg = createBG(bg_grass);
-				bindMovements(car);
-				var game_objects = [bg, road, stripes, car];
-				var i, obstacles = {}, side;
-				for (i = 0; i < 20; i++) {
-					side = (Math.random() > 0.5) ? 1:0;
-					obstacles[Math.floor(Math.round()*2000)] = new Obstacle(side, road);
-				}
-				var shots = 0;
-				startAnimationLoop(game_objects, function() {
-					stripes.start += 0.5;
-					if (obstacles.hasOwnProperty(shots)) {
-						game_objects.push(obstacles[shots]);
-					}
-					shots++;
-					return true;
-				});
 			};
-			car_img.src = 'car.png';
+			this.stepRight = function() {
+				x+=step;
+				if (x +width > road.rightEdge) {
+					x = road.rightEdge - width;
+				}
+			};
+		}
+
+
+		var Game = {
+			speed: 0.9,
+			Objects: {
+				drawAll: function() {
+					this.pool.bg._draw();
+					this.pool.road._draw();
+					this.pool.stripes._draw();
+					this.pool.car._draw();
+					for (var i = 0; i < this.pool.obstacles.length; i++) {
+						this.pool.obstacles[i]._draw();
+					}
+				},
+				pool: {},
+				create: function(bg_img, car_img) {
+					var road = new Road(120, 60, '#aaa');
+					this.pool.road = new Road(120, 60, '#aaa');
+					this.pool.stripes = new Stripes(2, 5, 5, this.pool.road);
+					this.pool.car = new Car(car_img, 154, 300-22, this.pool.road);
+					this.pool.bg = new Background(bg_grass);
+					this.pool.obstacles = [];
+				}
+			},
+			bindMovements : function (car) {
+				var _this = this;
+				window.addEventListener('keydown', function (event) {
+					switch(event.keyCode) {
+						case 37:
+							car.stepLeft();
+							break;
+						case 39:
+							car.stepRight();
+							break;
+					}
+				});
+				document.getElementsByTagName('button')[0].addEventListener('click', function () { car.stepLeft(); });
+				document.getElementsByTagName('button')[1].addEventListener('click', function () { car.stepRight(); });
+			},
+			animationLoop : function (gameLoop) {
+				this.Objects.drawAll();
+				var _this = this;
+				if (gameLoop(this.Objects.pool)) {
+					mozRequestAnimationFrame(function () {
+						_this.animationLoop(gameLoop);
+					});
+				}
+			}
 		};
-		bg_grass.src = 'grass.png';
+
+		// Initialization
+
+		var bg_grass = new Image(),
+			car_img = new Image(),
+			obs_img = new Image();
+
+		obs_img.onload = function () {
+			Obstacle.prototype.obs_img = obs_img;
+			bg_grass.onload = function () {
+				car_img.onload = function () {
+					Game.Objects.create(bg_grass, car_img, obs_img);
+					Game.bindMovements(Game.Objects.pool.car);
+					function checkIntersections(obstacles, car) {
+						for (var i = 0; i < obstacles.length; i++) {
+							if (obstacles[i].rightEdge > car.leftEdge && 
+								obstacles[i].leftEdge < car.rightEdge &&
+								obstacles[i].gap > 300-20) {
+									alert('stupid shit');
+							}
+						}
+					}
+					var gameLoop = (function () {
+						var side = 0;
+						var max_counts = 50, counts = 0 ;
+						return function(pool) {
+							checkIntersections(pool.obstacles, pool.car);
+							if (counts > max_counts) {
+								side = (Math.random() > 0.5) ? 1 : 0;
+								pool.obstacles.push(new Obstacle(side, pool.road));
+								counts = 0;
+								max_counts = 50 + Math.random()*100;
+							}
+							else {
+								counts++;
+							}
+							pool.stripes.start += Game.speed;
+							return true;
+						};
+					}());
+					Game.animationLoop(gameLoop);
+				};
+				car_img.src = 'car.png';
+			};
+			bg_grass.src = 'grass.png';
+		};
+		obs_img.src = 'obstacle.png';
 };
