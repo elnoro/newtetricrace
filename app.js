@@ -7,11 +7,9 @@ window.onload = function (argument) {
 			var halfOfRoad = (road.rightEdge - road.leftEdge) / 2,
 				x = (side === 0) ? road.leftEdge : road.leftEdge + halfOfRoad;
 			this.gap = 0;
-			this.rightEdge = x;
-			this.leftEdge = x + 30; // x + width
+			this.leftEdge = x;
+			this.rightEdge = x + 30; // x + width
 			this._draw = function () {
-				// ctx.fillStyle = '#f00';
-				// ctx.fillRect(x, this.gap, halfOfRoad, 20);
 				ctx.drawImage(this.obs_img, x, this.gap);
 				this.gap += Game.speed;
 				if (this.gap > canvas.height) {
@@ -125,6 +123,12 @@ window.onload = function (argument) {
 						_this.animationLoop(gameLoop);
 					});
 				}
+				else {
+					Game.gameOver();
+				}
+			},
+			gameOver: function () {
+				alert('Game over!');
 			}
 		};
 
@@ -145,15 +149,15 @@ window.onload = function (argument) {
 							if (obstacles[i].rightEdge > car.leftEdge && 
 								obstacles[i].leftEdge < car.rightEdge &&
 								obstacles[i].gap > 300-20) {
-									alert('stupid shit');
+									return true;
 							}
 						}
+						return false;
 					}
 					var gameLoop = (function () {
 						var side = 0;
 						var max_counts = 50, counts = 0 ;
 						return function(pool) {
-							checkIntersections(pool.obstacles, pool.car);
 							if (counts > max_counts) {
 								side = (Math.random() > 0.5) ? 1 : 0;
 								pool.obstacles.push(new Obstacle(side, pool.road));
@@ -164,7 +168,7 @@ window.onload = function (argument) {
 								counts++;
 							}
 							pool.stripes.start += Game.speed;
-							return true;
+							return !checkIntersections(pool.obstacles, pool.car);
 						};
 					}());
 					Game.animationLoop(gameLoop);
