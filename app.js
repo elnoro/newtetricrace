@@ -1,5 +1,14 @@
-window.onload = function (argument) {
-		// 'use strict';
+window.onload = function () {
+		var requestAnimFrame = (function(){
+			return  window.requestAnimationFrame   ||
+				window.webkitRequestAnimationFrame ||
+				window.mozRequestAnimationFrame    ||
+				window.oRequestAnimationFrame      ||
+				window.msRequestAnimationFrame     ||
+				function(callback) {
+					window.setTimeout(callback, 1000 / 60);
+				};
+		})();
 		var canvas = document.getElementsByTagName('canvas')[0],
 			ctx = canvas.getContext('2d');
 
@@ -119,7 +128,7 @@ window.onload = function (argument) {
 				this.Objects.drawAll();
 				var _this = this;
 				if (gameLoop(this.Objects.pool)) {
-					mozRequestAnimationFrame(function () {
+					requestAnimFrame(function () {
 						_this.animationLoop(gameLoop);
 					});
 				}
